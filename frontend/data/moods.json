@@ -1,0 +1,27 @@
+[
+	{
+		"icon": "Frown",
+		"title": "We miss you",
+		"text": "No practice yet today. A quick 5 min session can turn it around"
+	},
+	{
+		"icon": "Meh",
+		"title": "Almost there",
+		"text": "Yesterday went well. A short review today would lock it in"
+	},
+	{
+		"icon": "CloudRain",
+		"title": "Slow day?",
+		"text": "It's okay to have off days. One tiny lesson still counts"
+	},
+	{
+		"icon": "Sun",
+		"title": "New day, new words",
+		"text": "Start light. One unit is enough to get rolling"
+	},
+	{
+		"icon": "Smile",
+		"title": "You got this",
+		"text": "Pick any lesson you like and just begin"
+	}
+]

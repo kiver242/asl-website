@@ -19,21 +19,29 @@ function App() {
 	];
 
 	return (
-		<div className="min-h-screen bg-zinc-950 text-zinc-100">
-			{/* Fixed columns */}
-			<Sidebar items={navItems} />
-			<RightColumn streak={7} points={505} />
+		<div className="bg-zinc-950 text-zinc-100">
+			<div className="flex min-h-screen flex-col lg:grid lg:grid-cols-[15rem_minmax(0,1fr)_clamp(12rem,24vw,20rem)]">
+				<Sidebar
+					items={navItems}
+					className="w-full border-b border-zinc-800/60 lg:sticky lg:top-0 lg:h-screen lg:w-60 lg:shrink-0 lg:border-b-0 lg:border-r"
+				/>
 
-			{/* Center – routed content only scrolls */}
-			<main className="absolute left-60 right-80 top-0 bottom-0 overflow-y-auto">
-				<Routes>
-					<Route path="/" element={<Navigate to="/lessons" replace />} />
-					<Route path="/profile" element={<ProfilePage />} />
-					<Route path="/lessons" element={<LessonsPage />} />
-					<Route path="/achievements" element={<AchievementsPage />} />
-					<Route path="/login" element={<LoginPage />} />
-				</Routes>
-			</main>
+				<main className="order-2 flex min-w-0 flex-1 flex-col px-4 py-6 sm:px-6 lg:order-none">
+					<Routes>
+						<Route path="/" element={<Navigate to="/lessons" replace />} />
+						<Route path="/profile" element={<ProfilePage />} />
+						<Route path="/lessons" element={<LessonsPage />} />
+						<Route path="/achievements" element={<AchievementsPage />} />
+						<Route path="/login" element={<LoginPage />} />
+					</Routes>
+				</main>
+
+				<RightColumn
+					streak={0}
+					points={41}
+					className="order-3 border-t border-zinc-800/60 lg:order-none lg:sticky lg:top-0 lg:h-screen lg:border-t-0 lg:border-l"
+				/>
+			</div>
 		</div>
 	);
 }
