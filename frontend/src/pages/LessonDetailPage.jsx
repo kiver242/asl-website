@@ -5,7 +5,6 @@ import lessonsData from "../../data/lessons.json";
 import Card from "../components/ui/Card";
 import ProgressBar from "../components/ui/ProgressBar";
 import { useLessonProgress } from "../context/LessonProgressContext";
-import SpellYourNameLesson from "./SpellYourNameLesson";
 
 const getLessonById = (lessonId) =>
 	lessonsData.find((lesson) => Number(lesson.id) === Number(lessonId));
@@ -126,10 +125,6 @@ export default function LessonDetailPage() {
 				</Card>
 			</div>
 		);
-	}
-
-	if (lesson.kind === "spell-name") {
-		return <SpellYourNameLesson lesson={lesson} onExit={() => navigate("/lessons")} />;
 	}
 
 	const progressValue = isComplete ? 100 : savedLesson.progress ?? 0;

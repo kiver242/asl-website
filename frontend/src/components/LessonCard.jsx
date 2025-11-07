@@ -2,10 +2,7 @@ import Card from "./ui/Card";
 import ProgressBar from "./ui/ProgressBar";
 import { ChevronRight, Image as ImageIcon, Sparkles } from "lucide-react";
 
-const formatQuestionLabel = (lesson, count) => {
-	if (lesson?.kind === "spell-name") {
-		return "Personalized steps";
-	}
+const formatQuestionLabel = (count) => {
 	if (!count) {
 		return "No questions yet";
 	}
@@ -40,9 +37,6 @@ export default function LessonCard({
 							{lesson.title}
 						</h3>
 						<p className="text-sm text-foreground-subtle">{statusLabel}</p>
-						{lesson.summary ? (
-							<p className="mt-1 text-sm text-foreground-soft">{lesson.summary}</p>
-						) : null}
 					</div>
 					<div className="inline-flex items-center gap-2 rounded-full border border-border-soft bg-surface-muted px-3 py-1 text-xs font-semibold text-foreground-subtle">
 						<Sparkles className="h-4 w-4 text-accent" />
@@ -55,7 +49,7 @@ export default function LessonCard({
 						<ProgressBar value={safeProgress} />
 					</div>
 					<span className="text-xs font-medium text-foreground-subtle">
-						{formatQuestionLabel(lesson, questionCount)}
+						{formatQuestionLabel(questionCount)}
 					</span>
 				</div>
 
