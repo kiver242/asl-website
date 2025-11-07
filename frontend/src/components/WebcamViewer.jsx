@@ -27,6 +27,134 @@ const stopStream = (stream) => {
 	stream.getTracks().forEach((track) => track.stop());
 };
 
+const CAMERA_START_TIMEOUT_MS = 10_000;
+const HAVE_CURRENT_DATA_STATE = typeof HTMLMediaElement !== "undefined" ? HTMLMediaElement.HAVE_CURRENT_DATA : 2;
+
+const createCameraError = (message, originalError) => {
+	const error = new Error(message);
+	if (originalError instanceof Error) {
+		error.name = originalError.name;
+		error.cause = originalError;
+	}
+	return error;
+};
+
+const mapCameraError = (error) => {
+	if (error instanceof Error) {
+		switch (error.name) {
+			case "NotAllowedError":
+			case "PermissionDeniedError":
+				return createCameraError("Camera access was blocked. Please allow permissions and try again.", error);
+			case "NotFoundError":
+			case "DevicesNotFoundError":
+				return createCameraError("We couldn't detect a camera on this device.", error);
+			case "NotReadableError":
+			case "TrackStartError":
+				return createCameraError(
+					"We couldn't start the camera. It may be busy or in use by another application.",
+					error,
+				);
+			case "OverconstrainedError":
+				return createCameraError(
+					"This camera doesn't support the requested video configuration. Try adjusting your settings or use a different device.",
+					error,
+				);
+			case "TimeoutError":
+				return createCameraError(
+					"We couldn't start the camera in time. Check that no other app is using it and try again.",
+					error,
+				);
+			default:
+		}
+		if (error.message?.toLowerCase().includes("timeout")) {
+			return createCameraError(
+				"We couldn't start the camera in time. Check that no other app is using it and try again.",
+				error,
+			);
+		}
+		return error;
+	}
+	if (typeof error === "string" && error.trim().length > 0) {
+		return createCameraError(error, null);
+	}
+	return createCameraError(
+		"We couldn't access your camera. Check your browser permissions and try again.",
+		error instanceof Error ? error : null,
+	);
+};
+
+const createPlaybackMonitor = (videoElement, { onReady, onError }) => {
+	if (!videoElement) {
+		return null;
+	}
+
+	if (videoElement.readyState >= HAVE_CURRENT_DATA_STATE) {
+		onReady();
+		return null;
+	}
+
+	let timeoutId;
+	let isSettled = false;
+	let handleReady;
+	let handleFailure;
+
+	const cleanup = () => {
+		clearTimeout(timeoutId);
+		if (handleReady) {
+			videoElement.removeEventListener("loadeddata", handleReady);
+			videoElement.removeEventListener("canplay", handleReady);
+			videoElement.removeEventListener("canplaythrough", handleReady);
+		}
+		if (handleFailure) {
+			videoElement.removeEventListener("error", handleFailure);
+			videoElement.removeEventListener("stalled", handleFailure);
+			videoElement.removeEventListener("abort", handleFailure);
+		}
+	};
+
+	const settle = (callback) => (event) => {
+		if (isSettled) {
+			return;
+		}
+		isSettled = true;
+		cleanup();
+		callback(event);
+	};
+
+	handleReady = settle(() => {
+		onReady();
+	});
+
+	handleFailure = settle((event) => {
+		const fromEvent =
+			event instanceof Event && "error" in event
+				? event.error
+				: event instanceof Error
+					? event
+					: new Error("Camera stream could not start.");
+		onError(fromEvent);
+	});
+
+	timeoutId = setTimeout(() => {
+		handleFailure(new Error("Timed out while starting the camera."));
+	}, CAMERA_START_TIMEOUT_MS);
+
+	videoElement.addEventListener("loadeddata", handleReady, { once: true });
+	videoElement.addEventListener("canplay", handleReady, { once: true });
+	videoElement.addEventListener("canplaythrough", handleReady, { once: true });
+	videoElement.addEventListener("error", handleFailure, { once: true });
+	videoElement.addEventListener("stalled", handleFailure, { once: true });
+	videoElement.addEventListener("abort", handleFailure, { once: true });
+
+	return () => {
+		if (isSettled) {
+			return;
+		}
+		isSettled = true;
+		cleanup();
+	};
+};
+
 const WebcamViewer = forwardRef(function WebcamViewer(
 	{
 		isActive = false,
@@ -40,6 +168,7 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 ) {
 	const videoRef = useRef(null);
 	const streamRef = useRef(null);
+	const playbackMonitorRef = useRef(null);
 	const [status, setStatus] = useState("idle"); // idle | starting | ready | error
 	const [error, setError] = useState(null);
 
@@ -60,6 +189,11 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 		const videoElement = videoRef.current;
 		if (!isActive) {
 			setStatus("idle");
+			setError(null);
+			if (playbackMonitorRef.current) {
+				playbackMonitorRef.current();
+				playbackMonitorRef.current = null;
+			}
 			stopStream(streamRef.current);
 			streamRef.current = null;
 			if (videoElement) {
@@ -79,10 +213,31 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 		}
 
 		let cancelled = false;
+		const fail = (rawError) => {
+			if (cancelled) {
+				return;
+			}
+			const friendlyError = mapCameraError(rawError);
+			if (playbackMonitorRef.current) {
+				playbackMonitorRef.current();
+				playbackMonitorRef.current = null;
+			}
+			stopStream(streamRef.current);
+			streamRef.current = null;
+			if (videoElement) {
+				videoElement.srcObject = null;
+			}
+			setStatus("error");
+			setError(friendlyError);
+			onError?.(friendlyError);
+		};
+
 		const start = async () => {
+			let stream;
 			try {
 				setStatus("starting");
-				const stream = await navigator.mediaDevices.getUserMedia({
+				setError(null);
+				stream = await navigator.mediaDevices.getUserMedia({
 					video: {
 						facingMode: "user",
 						width: { ideal: 1280 },
@@ -97,17 +252,46 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 				streamRef.current = stream;
 				if (videoElement) {
 					videoElement.srcObject = stream;
-					await videoElement.play();
-					setStatus("ready");
-					onReady?.(videoElement);
+					if (playbackMonitorRef.current) {
+						playbackMonitorRef.current();
+						playbackMonitorRef.current = null;
+					}
+					const monitorCleanup = createPlaybackMonitor(videoElement, {
+						onReady: () => {
+							if (cancelled) {
+								return;
+							}
+							setStatus("ready");
+							setError(null);
+							onReady?.(videoElement);
+						},
+						onError: (monitorError) => {
+							fail(monitorError);
+						},
+					});
+					if (monitorCleanup) {
+						playbackMonitorRef.current = monitorCleanup;
+					}
+					const playPromise = videoElement.play();
+					if (playPromise && typeof playPromise.catch === "function") {
+						playPromise.catch((playError) => {
+							fail(playError);
+						});
+					}
+				} else {
+					fail(new Error("Camera preview element is not available."));
 				}
 			} catch (err) {
 				if (cancelled) {
+					if (stream) {
+						stopStream(stream);
+					}
 					return;
 				}
-				setStatus("error");
-				setError(err);
-				onError?.(err);
+				if (stream) {
+					stopStream(stream);
+				}
+				fail(err);
 			}
 		};
 
@@ -115,6 +299,10 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 
 		return () => {
 			cancelled = true;
+			if (playbackMonitorRef.current) {
+				playbackMonitorRef.current();
+				playbackMonitorRef.current = null;
+			}
 			stopStream(streamRef.current);
 			streamRef.current = null;
 			if (videoElement) {
