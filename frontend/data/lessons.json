@@ -1,24 +1,12 @@
 [
 	{
 		"id": 1,
-		"title": "Lesson 1 - Learn to spell your name!",
-		"questionCount": 2,
-		"points": 120,
-		"progress": 0,
-		"questions": [
-			{
-				"id": "introductions",
-				"type": "text",
-				"title": "Introduce yourself",
-				"prompt": "What's your name?"
-			},
-			{
-				"id": "spell-name",
-				"type": "camera",
-				"title": "Spell your name",
-				"prompt": "Use your camera to spell out your name in ASL"
-			}
-		]
+		"title": "Lesson 1 · Spell Your Name in ASL",
+		"kind": "spell-name",
+		"summary": "Use your webcam to practice the ASL alphabet letter-by-letter with your own name.",
+		"questionCount": 0,
+		"points": 150,
+		"imageUrl": "https://upload.wikimedia.org/wikipedia/commons/thumb/4/40/Sign_language_alphabet.svg/512px-Sign_language_alphabet.svg.png"
 	},
 	{
 		"id": 2,
