@@ -19,6 +19,39 @@ let cachedWebGLSupport = null;
 let usingCpuInference = false;
 let cpuFallbackWarningLogged = false;
 
+const cancelPendingHandsInference = (error) => {
+	if (!pendingHandsInference) {
+		return;
+	}
+	const rejectionError =
+		error instanceof Error ? error : new Error("Hands inference was cancelled.");
+	try {
+		if (typeof pendingHandsInference.reject === "function") {
+			pendingHandsInference.reject(rejectionError);
+		}
+	} catch {
+		// Ignore rejection errors.
+	}
+	pendingHandsInference = null;
+};
+
+const destroyHandsInstance = (error) => {
+	cancelPendingHandsInference(
+		error instanceof Error ? error : new Error("Hands instance has been disposed."),
+	);
+	if (!hands) {
+		return;
+	}
+	try {
+		if (typeof hands.close === "function") {
+			hands.close();
+		}
+	} catch {
+		// Ignore errors when closing the MediaPipe instance.
+	}
+	hands = null;
+};
+
 const now = () => {
 	if (typeof performance !== "undefined" && typeof performance.now === "function") {
 		return performance.now();
@@ -97,13 +130,14 @@ const maybeFallbackToCpuInference = (error) => {
 	}
 
 	cachedWebGLSupport = false;
-	usingCpuInference = true;
+	destroyHandsInstance(error);
 
 	try {
-		applyHandsOptions(hands, { useCpuInference: true });
+		hands = createHandsInstance({ forceCpu: true });
 		logCpuFallbackWarning(error);
 		return true;
 	} catch {
+		hands = null;
 		usingCpuInference = false;
 		return false;
 	}
@@ -125,12 +159,12 @@ const handleDebugKeydown = (event) => {
 	setDebugPrediction(letter, 0.95);
 };
 
-const createHandsInstance = () => {
+const createHandsInstance = ({ forceCpu = false } = {}) => {
 	const instance = new Hands({
 		locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
 	});
 
-	usingCpuInference = !supportsWebGL();
+	usingCpuInference = forceCpu || !supportsWebGL();
 	applyHandsOptions(instance);
 	instance.onResults((results) => {
 		if (pendingHandsInference) {
@@ -248,16 +282,7 @@ export function disposeASLModel() {
 		keyboardListenerRegistered = false;
 	}
 
-	if (hands) {
-		try {
-			hands.close();
-		} catch {
-			// Ignore errors when closing the MediaPipe instance.
-		}
-		hands = null;
-	}
-
-	pendingHandsInference = null;
+	destroyHandsInstance(new Error("ASL model disposed."));
 	isInitialized = false;
 	debugPrediction = null;
 	usingCpuInference = false;
