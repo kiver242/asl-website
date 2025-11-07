@@ -27,7 +27,11 @@ export default function LessonCard({
 		<Card className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
 			<div className="grid h-32 w-full place-items-center overflow-hidden rounded-xl bg-surface-strong sm:h-36 sm:w-36 md:h-40 md:w-40">
 				{lesson.imageUrl ? (
-					<img src={lesson.imageUrl} alt="" className="h-full w-full object-cover" />
+					<img
+						src={lesson.imageUrl}
+						alt=""
+						className="h-full w-full object-contain bg-surface-strong"
+					/>
 				) : (
 					<ImageIcon className="h-8 w-8 text-foreground-dim" />
 				)}
