@@ -171,12 +171,27 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 	const playbackMonitorRef = useRef(null);
 	const [status, setStatus] = useState("idle"); // idle | starting | ready | error
 	const [error, setError] = useState(null);
+	const onStatusChangeRef = useRef(onStatusChange);
+	const onReadyRef = useRef(onReady);
+	const onErrorRef = useRef(onError);
 
 	useImperativeHandle(externalRef, () => videoRef.current);
 
 	useEffect(() => {
-		onStatusChange?.(status);
-	}, [status, onStatusChange]);
+		onStatusChangeRef.current = onStatusChange;
+	}, [onStatusChange]);
+
+	useEffect(() => {
+		onReadyRef.current = onReady;
+	}, [onReady]);
+
+	useEffect(() => {
+		onErrorRef.current = onError;
+	}, [onError]);
+
+	useEffect(() => {
+		onStatusChangeRef.current?.(status);
+	}, [status]);
 
 	useEffect(() => {
 		return () => {
@@ -208,7 +223,7 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 			);
 			setStatus("error");
 			setError(err);
-			onError?.(err);
+			onErrorRef.current?.(err);
 			return;
 		}
 
@@ -229,7 +244,7 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 			}
 			setStatus("error");
 			setError(friendlyError);
-			onError?.(friendlyError);
+			onErrorRef.current?.(friendlyError);
 		};
 
 		const start = async () => {
@@ -263,7 +278,7 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 							}
 							setStatus("ready");
 							setError(null);
-							onReady?.(videoElement);
+							onReadyRef.current?.(videoElement);
 						},
 						onError: (monitorError) => {
 							fail(monitorError);
@@ -309,7 +324,7 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 				videoElement.srcObject = null;
 			}
 		};
-	}, [isActive, onReady, onError]);
+	}, [isActive]);
 
 	return (
 		<div className={cx("relative flex flex-col gap-2", className)}>
