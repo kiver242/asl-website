@@ -14,7 +14,7 @@ import { ASLDetectorDebugAPI, disposeASLModel, initASLModel } from "../services/
 import { useASLLetterDetection } from "../hooks/useASLLetterDetection";
 import { getASLLetterMedia } from "../data/aslLetterImages";
 
-const DETECTION_THRESHOLD = 0.9;
+const DETECTION_THRESHOLD = 0.7;
 const HOLD_DURATION_MS = 1_200;
 
 const StatusBadge = ({ tone = "neutral", children }) => {
@@ -84,12 +84,12 @@ const CompletionCard = ({ name, letters, onRestart, onExit }) => (
 						key={`${letter}-${index}`}
 						className="flex w-24 flex-col items-center gap-2 rounded-2xl border border-border-soft bg-surface-muted p-3"
 					>
-						<div className="h-20 w-full overflow-hidden rounded-xl bg-surface-strong">
+						<div className="flex h-20 w-full items-center justify-center overflow-hidden rounded-xl bg-surface-strong">
 							{media ? (
 								<img
 									src={media.src}
 									alt={media.alt}
-									className="h-full w-full object-cover"
+									className="max-h-full max-w-full object-contain"
 									loading="lazy"
 								/>
 							) : (
@@ -457,16 +457,16 @@ export default function SpellYourNameLesson({ lesson, onExit }) {
 									</p>
 								</div>
 
-								<div className="overflow-hidden rounded-2xl border border-border-soft bg-surface-muted">
+								<div className="flex h-56 w-full items-center justify-center rounded-2xl border border-border-soft bg-surface-muted">
 									{getASLLetterMedia(currentLetter) ? (
 										<img
 											key={currentLetter}
 											src={getASLLetterMedia(currentLetter).src}
 											alt={getASLLetterMedia(currentLetter).alt}
-											className="h-56 w-full object-cover"
+											className="max-h-full max-w-full object-contain"
 										/>
 									) : (
-										<div className="grid h-56 place-items-center text-5xl font-bold text-foreground-muted">
+										<div className="grid h-full w-full place-items-center text-5xl font-bold text-foreground-muted">
 											{currentLetter}
 										</div>
 									)}

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { predictLetterFromFrame } from "../services/aslDetector";
 
-const DEFAULT_THRESHOLD = 0.85;
+const DEFAULT_THRESHOLD = 0.7;
 const DEFAULT_HOLD_DURATION_MS = 1_000;
 
 const getNow = () => {
