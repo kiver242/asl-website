@@ -2,19 +2,38 @@
 	{
 		"id": 1,
 		"title": "Lesson 1 - Learn to spell your name!",
-		"units": 5,
-		"progress": 0
+		"questionCount": 2,
+		"points": 120,
+		"progress": 0,
+		"questions": [
+			{
+				"id": "introductions",
+				"type": "text",
+				"title": "Introduce yourself",
+				"prompt": "What's your name?"
+			},
+			{
+				"id": "spell-name",
+				"type": "camera",
+				"title": "Spell your name",
+				"prompt": "Use your camera to spell out your name in ASL"
+			}
+		]
 	},
 	{
 		"id": 2,
 		"title": "Lesson 2 - Learn the alphabet!",
-		"units": 5,
-		"progress": 0
+		"questionCount": 10,
+		"points": 180,
+		"progress": 0,
+		"questions": []
 	},
 	{
 		"id": 3,
 		"title": "Lesson 3 - Learn common words!",
-		"units": 5,
-		"progress": 0
+		"questionCount": 7,
+		"points": 150,
+		"progress": 0,
+		"questions": []
 	}
 ]

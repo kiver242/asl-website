@@ -82,18 +82,22 @@ function MoodCard({ didStudyToday }) {
 }
 
 export default function RightColumn({ streak, points, className = "" }) {
+	const safeStreak = Number.isFinite(streak) && streak > 0 ? streak : 0;
+	const safePoints = Number.isFinite(points) && points > 0 ? points : 0;
+	const formattedPoints = Intl.NumberFormat().format(safePoints);
+
 	return (
 		<aside
 			className={`flex min-h-0 flex-col bg-surface-overlay border-border backdrop-blur p-4 ${className}`}
 		>
 			<div className="mb-3 flex items-center gap-2">
-				<StatPill icon={Flame} label="Streak" value={streak} />
-				<StatPill icon={Star} label="Points" value={points} />
+				<StatPill icon={Flame} label="Streak" value={safeStreak} />
+				<StatPill icon={Star} label="Points" value={formattedPoints} />
 			</div>
 
 			<div className="flex-1 overflow-y-auto space-y-3 pr-1">
 				<LoginCard />
-				<MoodCard didStudyToday={streak > 0} />
+				<MoodCard didStudyToday={safeStreak > 0} />
 			</div>
 
 			<div className="mt-3 flex items-center gap-3 border-t border-border pt-3 text-xs text-foreground-dim">
