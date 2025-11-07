@@ -338,14 +338,17 @@ const WebcamViewer = forwardRef(function WebcamViewer(
 				</span>
 			</div>
 			<div
-				className={cx("relative aspect-video w-full overflow-hidden rounded-2xl border", {
-					"border-destructive/60 bg-destructive/10": status === "error",
-					"border-border-soft": status !== "error",
-				})}
+				className={cx(
+					"relative aspect-video w-full overflow-hidden rounded-2xl border bg-surface-strong",
+					{
+						"border-destructive/60 bg-destructive/10": status === "error",
+						"border-border-soft": status !== "error",
+					},
+				)}
 			>
 				<video
 					ref={videoRef}
-					className={cx("h-full w-full object-cover", {
+					className={cx("h-full w-full object-contain bg-black", {
 						"opacity-0": status !== "ready",
 						"opacity-100 transition-opacity duration-300": status === "ready",
 					})}

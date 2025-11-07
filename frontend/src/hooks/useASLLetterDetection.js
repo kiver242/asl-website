@@ -58,21 +58,26 @@ export function useASLLetterDetection({
 			}
 
 			try {
-				const prediction = await predictLetterFromFrame(videoElement);
+				const prediction = await predictLetterFromFrame(videoElement, { targetLetter });
 				const predictedLetter = prediction.letter?.toUpperCase() ?? null;
+				const targetConfidence =
+					typeof prediction.targetConfidence === "number" ? prediction.targetConfidence : null;
+				const overallConfidence =
+					typeof prediction.confidence === "number" ? prediction.confidence : 0;
+				const effectiveConfidence = targetConfidence ?? overallConfidence;
 
 				setState((prev) => ({
 					...prev,
 					status: prev.status === "matched" ? prev.status : "detecting",
 					letter: predictedLetter,
-					confidence: prediction.confidence ?? 0,
+					confidence: effectiveConfidence,
 					error: null,
 				}));
 
 				if (
-					predictedLetter === targetLetter &&
-					typeof prediction.confidence === "number" &&
-					prediction.confidence >= threshold
+					targetLetter &&
+					typeof targetConfidence === "number" &&
+					targetConfidence >= threshold
 				) {
 					if (!stableSinceRef.current) {
 						stableSinceRef.current = getNow();
@@ -81,8 +86,8 @@ export function useASLLetterDetection({
 					if (elapsed >= holdDurationMs) {
 						setState({
 							status: "matched",
-							letter: predictedLetter,
-							confidence: prediction.confidence,
+							letter: targetLetter,
+							confidence: targetConfidence,
 							error: null,
 						});
 						return;
