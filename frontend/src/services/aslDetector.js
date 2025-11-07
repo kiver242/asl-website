@@ -3,18 +3,110 @@ import { classifyHand } from "./handShapeClassifier";
 
 const DEFAULT_CONFIDENCE = 0.05;
 const DEFAULT_DURATION_MS = 1200;
+const WEBGL_CONTEXT_NAMES = ["webgl2", "webgl", "experimental-webgl"];
+const CPU_FALLBACK_ERROR_PATTERNS = [
+	/failed to create webgl canvas context/i,
+	/webgl.*context.*lost/i,
+	/unable to create webgl/i,
+];
 
 let isInitialized = false;
 let debugPrediction = null;
 let keyboardListenerRegistered = false;
 let hands = null;
 let pendingHandsInference = null;
+let cachedWebGLSupport = null;
+let usingCpuInference = false;
+let cpuFallbackWarningLogged = false;
 
 const now = () => {
 	if (typeof performance !== "undefined" && typeof performance.now === "function") {
 		return performance.now();
 	}
 	return Date.now();
+};
+
+const supportsWebGL = () => {
+	if (cachedWebGLSupport !== null) {
+		return cachedWebGLSupport;
+	}
+
+	if (typeof document === "undefined") {
+		cachedWebGLSupport = false;
+		return cachedWebGLSupport;
+	}
+
+	try {
+		const canvas = document.createElement("canvas");
+		cachedWebGLSupport = WEBGL_CONTEXT_NAMES.some((contextName) => {
+			const context = canvas.getContext(contextName);
+			if (!context) {
+				return false;
+			}
+			if (typeof context.getParameter === "function") {
+				// Access a parameter to ensure the context is valid.
+				context.getParameter(context.VERSION);
+			}
+			return true;
+		});
+		if (typeof canvas.remove === "function") {
+			canvas.remove();
+		}
+	} catch {
+		cachedWebGLSupport = false;
+	}
+
+	return cachedWebGLSupport;
+};
+
+const logCpuFallbackWarning = (error) => {
+	if (cpuFallbackWarningLogged || typeof console === "undefined" || typeof console.warn !== "function") {
+		return;
+	}
+	cpuFallbackWarningLogged = true;
+	console.warn(
+		"[ASLDetector] Falling back to CPU inference because WebGL contexts are not available. Performance may be reduced.",
+		error,
+	);
+};
+
+const applyHandsOptions = (instance, overrides = {}) => {
+	if (!instance) {
+		return;
+	}
+	const baseOptions = {
+		maxNumHands: 1,
+		modelComplexity: usingCpuInference ? 0 : 1,
+		selfieMode: true,
+		minDetectionConfidence: 0.55,
+		minTrackingConfidence: 0.5,
+		useCpuInference: usingCpuInference,
+	};
+	instance.setOptions({ ...baseOptions, ...overrides });
+};
+
+const maybeFallbackToCpuInference = (error) => {
+	if (!hands || usingCpuInference) {
+		return false;
+	}
+
+	const message = typeof error?.message === "string" ? error.message : String(error ?? "");
+	const shouldFallback = CPU_FALLBACK_ERROR_PATTERNS.some((pattern) => pattern.test(message));
+	if (!shouldFallback) {
+		return false;
+	}
+
+	cachedWebGLSupport = false;
+	usingCpuInference = true;
+
+	try {
+		applyHandsOptions(hands, { useCpuInference: true });
+		logCpuFallbackWarning(error);
+		return true;
+	} catch {
+		usingCpuInference = false;
+		return false;
+	}
 };
 
 const normalizeLetter = (letter) => {
@@ -37,13 +129,9 @@ const createHandsInstance = () => {
 	const instance = new Hands({
 		locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
 	});
-	instance.setOptions({
-		maxNumHands: 1,
-		modelComplexity: 1,
-		selfieMode: true,
-		minDetectionConfidence: 0.55,
-		minTrackingConfidence: 0.5,
-	});
+
+	usingCpuInference = !supportsWebGL();
+	applyHandsOptions(instance);
 	instance.onResults((results) => {
 		if (pendingHandsInference) {
 			pendingHandsInference.resolve(results);
@@ -172,6 +260,8 @@ export function disposeASLModel() {
 	pendingHandsInference = null;
 	isInitialized = false;
 	debugPrediction = null;
+	usingCpuInference = false;
+	cpuFallbackWarningLogged = false;
 }
 
 export function setDebugPrediction(letter, confidence = 0.99, durationMs = DEFAULT_DURATION_MS) {
@@ -206,6 +296,12 @@ export async function predictLetterFromFrame(videoElement, options = {}) {
 		return { letter: null, confidence: 0, targetConfidence: 0, scores: {} };
 	}
 
+	const videoWidth = typeof videoElement.videoWidth === "number" ? videoElement.videoWidth : 0;
+	const videoHeight = typeof videoElement.videoHeight === "number" ? videoElement.videoHeight : 0;
+	if (videoWidth <= 0 || videoHeight <= 0) {
+		return { letter: null, confidence: 0, targetConfidence: 0, scores: {} };
+	}
+
 	const debug = getActiveDebugPrediction();
 	if (debug) {
 		return {
@@ -224,7 +320,11 @@ export async function predictLetterFromFrame(videoElement, options = {}) {
 	try {
 		results = await runHandsInference(videoElement);
 	} catch (error) {
-		throw error;
+		const fallbackActivated = maybeFallbackToCpuInference(error);
+		if (!fallbackActivated) {
+			throw error;
+		}
+		results = await runHandsInference(videoElement);
 	}
 
 	if (!results) {
